@@ -70,24 +70,33 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 });
-
 app.get('/file/:fileName', async (req, res) => {
     try {
         const bucketName = process.env.BUCKETNAME;
         const fileName = req.params.fileName;
 
-        const metaData = await minioClient.statObject(bucketName, fileName);
-        const contentType = metaData.contentType || 'application/octet-stream';
+        // Cek apakah file ada sebelum mengambilnya
+        try {
+            const metaData = await minioClient.statObject(bucketName, fileName);
+            res.setHeader("Content-Type", metaData.contentType || 'application/octet-stream');
+            res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
+        } catch (statError) {
+            console.error("Error saat mengecek metadata file:", statError);
+            return res.status(404).json({ message: "File tidak ditemukan." });
+        }
 
+        // Ambil file dari Minio
         const objectStream = await minioClient.getObject(bucketName, fileName);
-
-        res.type(contentType);  
-
         objectStream.pipe(res);
+        
+        objectStream.on('error', (err) => {
+            console.error("Error saat membaca file:", err);
+            return res.status(500).json({ message: "Gagal membaca file dari server." });
+        });
 
     } catch (error) {
         console.error("Error saat mengambil file:", error);
-        return res.status(404).json({ message: "File tidak ditemukan atau terjadi kesalahan." });
+        return res.status(500).json({ message: "Terjadi kesalahan internal." });
     }
 });
 
