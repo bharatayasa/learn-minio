@@ -70,6 +70,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 });
+
 app.get('/file/:fileName', async (req, res) => {
     try {
         const bucketName = process.env.BUCKETNAME;
